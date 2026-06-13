@@ -1,0 +1,24 @@
+# Env files
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env.local
+
+# Rust
+backend/target/
+
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS / editor
+.DS_Store
+.vscode/
