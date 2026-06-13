@@ -1,5 +1,8 @@
 # Cronofy AI Meeting Workflow Demo
 
+<img width="927" height="1202" alt="image" src="https://github.com/user-attachments/assets/791890c0-f984-4521-81e6-e04ea749b1f5" />
+
+
 A minimal demo application showing how Cronofy can turn scheduling into an application workflow.
 
 The project uses:
