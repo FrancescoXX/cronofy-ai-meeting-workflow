@@ -116,11 +116,13 @@ function Field({
 }
 
 function SectionCard({
+  step,
   eyebrow,
   title,
   description,
   children,
 }: {
+  step: string;
   eyebrow: string;
   title: string;
   description: string;
@@ -128,9 +130,20 @@ function SectionCard({
 }) {
   return (
     <div className="rounded-3xl border border-neutral-900 bg-neutral-950 p-6">
-      <p className="text-sm text-neutral-500">{eyebrow}</p>
-      <h2 className="mt-2 text-2xl font-semibold">{title}</h2>
-      <p className="mt-3 text-sm leading-6 text-neutral-500">{description}</p>
+      <div className="flex items-start gap-4">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-neutral-800 bg-black text-xs font-semibold text-neutral-400">
+          {step}
+        </div>
+
+        <div>
+          <p className="text-sm text-neutral-500">{eyebrow}</p>
+          <h2 className="mt-2 text-2xl font-semibold">{title}</h2>
+          <p className="mt-3 text-sm leading-6 text-neutral-500">
+            {description}
+          </p>
+        </div>
+      </div>
+
       {children && <div className="mt-6">{children}</div>}
     </div>
   );
@@ -373,7 +386,9 @@ export default function Home() {
 
             <div>
               <p className="text-sm font-medium text-white">Cronofy Demo</p>
-              <p className="text-xs text-neutral-500">AI Meeting Coordinator</p>
+              <p className="text-xs text-neutral-500">
+                API-first AI Meeting Coordinator
+              </p>
             </div>
           </div>
 
@@ -382,47 +397,38 @@ export default function Home() {
             <span className="text-neutral-700">/</span>
             <span>Rust</span>
             <span className="text-neutral-700">/</span>
-            <span>Cronofy</span>
+            <span>Cronofy APIs</span>
           </div>
         </header>
 
         <section className="py-12">
-          <Pill variant="blue">API-first scheduling infrastructure demo</Pill>
+          <Pill variant="blue">Real API-first demo</Pill>
 
           <h1 className="mt-6 max-w-4xl text-5xl font-semibold tracking-tight md:text-7xl">
             Build AI meeting workflows on top of time infrastructure.
           </h1>
 
           <p className="mt-6 max-w-3xl text-lg leading-8 text-neutral-400">
-            A minimal developer demo showing how an app can use Cronofy as the
-            coordination layer for availability, booking, workflow updates,
-            meeting context, and agentic scheduling.
+            This demo uses real Cronofy OAuth, real calendar availability, and
+            real calendar booking. Meeting Agents and MCP are shown as the next
+            workflow layers developers can build toward.
           </p>
 
           <div className="mt-8 flex flex-wrap gap-2 text-sm text-neutral-400">
-            <span className="rounded-full border border-neutral-900 bg-neutral-950 px-4 py-2">
-              Find availability
-            </span>
-            <span className="rounded-full border border-neutral-900 bg-neutral-950 px-4 py-2">
-              Book meeting
-            </span>
-            <span className="rounded-full border border-neutral-900 bg-neutral-950 px-4 py-2">
-              Update workflow
-            </span>
-            <span className="rounded-full border border-neutral-900 bg-neutral-950 px-4 py-2">
-              Surface context
-            </span>
-            <span className="rounded-full border border-neutral-900 bg-neutral-950 px-4 py-2">
-              MCP agent layer
-            </span>
+            <Pill variant="success">Real OAuth</Pill>
+            <Pill variant="success">Real Availability API</Pill>
+            <Pill variant="success">Real calendar booking</Pill>
+            <Pill variant="blue">Meeting Agents layer</Pill>
+            <Pill variant="blue">MCP server layer</Pill>
           </div>
         </section>
 
         <section className="grid gap-6 border-y border-neutral-900 py-8 lg:grid-cols-[0.95fr_1.05fr]">
           <SectionCard
-            eyebrow="Meeting request"
-            title="Start with an intent"
-            description="The app receives a meeting coordination request. In a real product this could come from a user, a CRM, a support workflow, or an AI agent."
+            step="01"
+            eyebrow="Meeting intent"
+            title="Start with a meeting request"
+            description="The product receives a meeting coordination request. In a real app this could come from a user, CRM, support workflow, or AI agent."
           >
             <textarea
               value={meetingPrompt}
@@ -436,8 +442,8 @@ export default function Home() {
               className="mt-4 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {flowLoading === "availability"
-                ? "Finding available times..."
-                : "Find available times"}
+                ? "Finding real availability..."
+                : "Find real availability"}
             </button>
 
             {flowError && (
@@ -448,13 +454,15 @@ export default function Home() {
           </SectionCard>
 
           <SectionCard
-            eyebrow="Availability layer"
-            title="Cronofy returns valid time slots"
-            description="This is the API-first part of the demo: the app asks Cronofy for availability and gets back time options it can use in its own product workflow."
+            step="02"
+            eyebrow="Cronofy Availability API"
+            title="Return calendar-aware time slots"
+            description="The Rust backend asks Cronofy for real availability from the connected Google Calendar, then returns usable slots to the app."
           >
             {!availability && (
               <div className="rounded-2xl border border-neutral-900 bg-black p-5 text-sm text-neutral-500">
-                No availability loaded yet. Start by finding available times.
+                No availability loaded yet. Start by finding real available
+                times.
               </div>
             )}
 
@@ -497,7 +505,7 @@ export default function Home() {
                   className="rounded-xl bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {flowLoading === "booking"
-                    ? "Booking meeting..."
+                    ? "Booking real calendar event..."
                     : "Book selected slot"}
                 </button>
               </div>
@@ -507,9 +515,10 @@ export default function Home() {
 
         <section className="grid gap-6 border-b border-neutral-900 py-8 lg:grid-cols-2">
           <SectionCard
-            eyebrow="Booking workflow"
-            title="The app turns a slot into a meeting"
-            description="After a slot is selected, the backend can book the meeting, update the calendar, and move the product workflow forward."
+            step="03"
+            eyebrow="Calendar booking"
+            title="Create a real calendar event"
+            description="After a slot is selected, the backend creates an event through Cronofy and updates the application workflow."
           >
             {!booking && (
               <div className="rounded-2xl border border-neutral-900 bg-black p-5 text-sm text-neutral-500">
@@ -535,7 +544,7 @@ export default function Home() {
 
                 <div className="rounded-2xl border border-emerald-900 bg-emerald-950/60 p-5">
                   <p className="text-lg font-semibold text-emerald-200">
-                    Meeting booked through the coordination layer
+                    Meeting created through Cronofy
                   </p>
 
                   <div className="mt-4 grid gap-3 text-sm text-emerald-100 md:grid-cols-3">
@@ -555,13 +564,14 @@ export default function Home() {
           </SectionCard>
 
           <SectionCard
-            eyebrow="Meeting intelligence"
-            title="Context flows back into the app"
-            description="This completes the product story: once the meeting is created or completed, context can flow back into the application and power the next step."
+            step="04"
+            eyebrow="Meeting Agents preview"
+            title="Bring meeting context back into the app"
+            description="This section previews the next layer: after the meeting, Meeting Agents can bring transcript, summary, and follow-up context back into the product."
           >
             {!meetingContext && (
               <div className="rounded-2xl border border-neutral-900 bg-black p-5 text-sm text-neutral-500">
-                Meeting context will appear after booking a slot.
+                Meeting context appears after booking a slot.
               </div>
             )}
 
@@ -607,13 +617,14 @@ export default function Home() {
 
         <section className="grid gap-6 border-b border-neutral-900 py-8 lg:grid-cols-[1.1fr_0.9fr]">
           <SectionCard
-            eyebrow="MCP agent workflow"
-            title="Let an agent coordinate the same workflow"
-            description="The agentic layer is where this becomes especially interesting: an AI agent can ask for availability, book a meeting, and push the result back into the app through deterministic tools."
+            step="05"
+            eyebrow="Cronofy MCP server layer"
+            title="Let an AI agent trigger the same workflow"
+            description="The app uses Cronofy APIs directly. The MCP layer shows how the same availability and booking workflow could be exposed to an AI agent through Cronofy MCP."
           >
             {!agentWorkflow && (
               <div className="rounded-2xl border border-neutral-900 bg-black p-5 text-sm text-neutral-500">
-                Agent workflow will appear after the booking step.
+                MCP workflow preview appears after the booking step.
               </div>
             )}
 
@@ -643,71 +654,30 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
+
+                <div className="rounded-2xl border border-neutral-900 bg-black p-5">
+                  <p className="text-xs uppercase tracking-wide text-neutral-600">
+                    Note for the final video
+                  </p>
+                  <p className="mt-3 text-sm leading-6 text-neutral-400">
+                    This web app demonstrates the API-first flow. The final
+                    recording can add a short Claude Code / MCP segment to show
+                    how an agent could call Cronofy tools directly.
+                  </p>
+                </div>
               </div>
             )}
           </SectionCard>
 
           <SectionCard
-            eyebrow="Real webhook state"
-            title="Existing Cronofy webhook receiver"
-            description="The previous working demo is still preserved. If the Scheduler Embed is used, Cronofy can send updates to the Rust backend and the UI can reflect the latest webhook state."
+            step="06"
+            eyebrow="Scheduler Embed"
+            title="Keep the drop-in scheduler as an option"
+            description="Scheduler Embed is still available when developers want a pre-packaged scheduling experience instead of building the flow themselves."
           >
-            <Pill variant={meetingComplete ? "success" : "default"}>
-              {meetingComplete ? "Webhook complete" : "Waiting for webhook"}
+            <Pill variant={schedulerLoaded ? "success" : "default"}>
+              {schedulerLoaded ? "Scheduler ready" : "Scheduler loading"}
             </Pill>
-
-            {!meetingStatus?.has_update && (
-              <div className="mt-6 rounded-2xl border border-neutral-900 bg-black p-5 text-sm text-neutral-500">
-                Waiting for Cronofy webhook...
-              </div>
-            )}
-
-            {meetingStatus?.has_update && (
-              <div className="mt-6 space-y-4">
-                <div className="grid gap-3 md:grid-cols-2">
-                  <Field label="Event" value={notification?.type} />
-                  <Field
-                    label="Status"
-                    value={schedulingRequest?.slot_selection}
-                  />
-                  <Field label="Meeting" value={schedulingRequest?.summary} />
-                  <Field
-                    label="Invitee"
-                    value={recipient?.email ?? recipient?.display_name}
-                  />
-                </div>
-
-                <Field
-                  label="Duration"
-                  value={duration ? `${duration} minutes` : undefined}
-                />
-              </div>
-            )}
-          </SectionCard>
-        </section>
-
-        <section className="py-8">
-          <div className="rounded-3xl border border-neutral-900 bg-neutral-950 p-6">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-              <div className="max-w-2xl">
-                <p className="text-sm text-neutral-500">
-                  Drop-in scheduling option
-                </p>
-                <h2 className="mt-2 text-2xl font-semibold">
-                  Need a pre-packaged scheduler?
-                </h2>
-                <p className="mt-3 text-sm leading-7 text-neutral-500">
-                  The API-first flow shows what developers can build on top of
-                  Cronofy. If they do not want to build the scheduling
-                  experience themselves, Scheduler Embed is still available as a
-                  drop-in option.
-                </p>
-              </div>
-
-              <Pill variant={schedulerLoaded ? "success" : "default"}>
-                {schedulerLoaded ? "Scheduler ready" : "Scheduler loading"}
-              </Pill>
-            </div>
 
             {schedulerError && (
               <div className="mt-6 rounded-2xl border border-red-900 bg-red-950 p-4 text-sm text-red-200">
@@ -715,58 +685,83 @@ export default function Home() {
               </div>
             )}
 
-            <div className="mt-6 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-              <div className="rounded-2xl border border-neutral-900 bg-black p-5">
-                <p className="mb-4 text-xs uppercase tracking-wide text-neutral-600">
-                  Create request
-                </p>
+            <div className="mt-6 rounded-2xl border border-neutral-900 bg-black p-5">
+              <p className="mb-4 text-xs uppercase tracking-wide text-neutral-600">
+                Drop-in request flow
+              </p>
 
-                <div className="min-h-16">
-                  {schedulerLoaded ? (
-                    createElement("cronofy-scheduler-button", {
-                      id: "cronofy-scheduler-button",
-                      "embed-token": embedToken,
-                      "correlation-id": "youtube-demo-001",
-                      "recipient-email": "demo@example.com",
-                      "recipient-name": "Demo User",
-                      "recipient-organization-name": "Demo Company",
-                      "event-summary": "AI Meeting Workflow Demo",
-                      "event-duration-minutes": "30",
-                    })
-                  ) : (
-                    <p className="text-sm text-neutral-500">
-                      Loading Cronofy Scheduler...
-                    </p>
-                  )}
-                </div>
+              <div className="min-h-16">
+                {schedulerLoaded ? (
+                  createElement("cronofy-scheduler-button", {
+                    id: "cronofy-scheduler-button",
+                    "embed-token": embedToken,
+                    "correlation-id": "youtube-demo-001",
+                    "recipient-email": "demo@example.com",
+                    "recipient-name": "Demo User",
+                    "recipient-organization-name": "Demo Company",
+                    "event-summary": "AI Meeting Workflow Demo",
+                    "event-duration-minutes": "30",
+                  })
+                ) : (
+                  <p className="text-sm text-neutral-500">
+                    Loading Cronofy Scheduler...
+                  </p>
+                )}
               </div>
 
-              <div className="rounded-2xl border border-neutral-900 bg-black p-5">
+              <div className="mt-4 rounded-2xl border border-neutral-900 bg-neutral-950 p-4">
                 <p className="text-xs uppercase tracking-wide text-neutral-600">
                   Correlation id
                 </p>
                 <p className="mt-2 font-mono text-sm text-neutral-300">
                   {correlationId}
                 </p>
+              </div>
 
-                {requestUrl && (
-                  <div className="mt-4 rounded-2xl border border-blue-900 bg-blue-950/60 p-4">
-                    <p className="text-sm font-medium text-blue-100">
-                      Request link created
-                    </p>
+              {requestUrl && (
+                <div className="mt-4 rounded-2xl border border-blue-900 bg-blue-950/60 p-4">
+                  <p className="text-sm font-medium text-blue-100">
+                    Request link created
+                  </p>
 
-                    <a
-                      href={requestUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-2 block break-all text-sm text-blue-300 underline"
-                    >
-                      {requestUrl}
-                    </a>
-                  </div>
-                )}
+                  <a
+                    href={requestUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 block break-all text-sm text-blue-300 underline"
+                  >
+                    {requestUrl}
+                  </a>
+                </div>
+              )}
+            </div>
+          </SectionCard>
+        </section>
+
+        <section className="py-8">
+          <div className="rounded-3xl border border-neutral-900 bg-neutral-950 p-6">
+            <p className="text-sm text-neutral-500">Validation summary</p>
+            <h2 className="mt-2 text-2xl font-semibold">
+              What this demo proves
+            </h2>
+
+            <div className="mt-6 grid gap-3 md:grid-cols-3">
+              <div className="rounded-2xl border border-emerald-900 bg-emerald-950/50 p-4 text-sm text-emerald-100">
+                Real Cronofy OAuth connection
+              </div>
+              <div className="rounded-2xl border border-emerald-900 bg-emerald-950/50 p-4 text-sm text-emerald-100">
+                Real Availability API slots
+              </div>
+              <div className="rounded-2xl border border-emerald-900 bg-emerald-950/50 p-4 text-sm text-emerald-100">
+                Real Google Calendar event creation
               </div>
             </div>
+
+            <p className="mt-5 max-w-3xl text-sm leading-7 text-neutral-500">
+              The point is to show Cronofy as the infrastructure layer
+              developers can build on: availability, booking, workflows,
+              meeting context, and agentic scheduling.
+            </p>
           </div>
         </section>
       </div>
