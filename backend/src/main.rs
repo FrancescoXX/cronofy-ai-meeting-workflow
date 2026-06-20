@@ -22,6 +22,7 @@ struct AppState {
     last_webhook: Arc<Mutex<Option<Value>>>,
     auth: Arc<Mutex<Option<AuthSession>>>,
     last_slots: Arc<Mutex<Vec<AvailabilitySlot>>>,
+    last_meeting_agent: Arc<Mutex<Option<Value>>>,
 }
 
 #[derive(Clone, Debug)]
@@ -85,6 +86,13 @@ struct BookMeetingResponse {
     selected_slot: String,
     calendar_updated: bool,
     workflow_updated: bool,
+}
+
+#[derive(Deserialize)]
+struct MeetingAgentRequest {
+    join_url: String,
+    attendee_email: Option<String>,
+    display_name: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -665,14 +673,102 @@ async fn book_meeting(
     }))
 }
 
+async fn dispatch_meeting_agent(
+    State(state): State<AppState>,
+    Json(payload): Json<MeetingAgentRequest>,
+) -> Result<Json<Value>, (StatusCode, String)> {
+    let client_secret = require_env("CRONOFY_CLIENT_SECRET")?;
+
+    let attendee_email = payload
+        .attendee_email
+        .unwrap_or_else(|| "me@francescociulla.com".to_string());
+
+    let display_name = payload
+        .display_name
+        .unwrap_or_else(|| "Cronofy AI Meeting Demo".to_string());
+
+    let request_body = json!({
+        "join_url": payload.join_url,
+        "display_name": display_name,
+        "on_behalf_of_attendee": {
+            "email": attendee_email
+        }
+    });
+
+    println!("Meeting Agent request:");
+    println!("{:#}", request_body);
+
+    let client = Client::new();
+
+    let response = client
+        .post(format!("{}/v1/meeting_agents", data_center_url()))
+        .bearer_auth(client_secret)
+        .json(&request_body)
+        .send()
+        .await
+        .map_err(|err| {
+            (
+                StatusCode::BAD_GATEWAY,
+                format!("Failed to call Cronofy Meeting Agents endpoint: {err}"),
+            )
+        })?;
+
+    let status = response.status();
+    let body = response.text().await.unwrap_or_default();
+
+    if !status.is_success() {
+        return Err((
+            StatusCode::BAD_GATEWAY,
+            format!("Cronofy Meeting Agent request failed: {status} {body}"),
+        ));
+    }
+
+    let value: Value = serde_json::from_str(&body).map_err(|err| {
+        (
+            StatusCode::BAD_GATEWAY,
+            format!("Failed to parse Cronofy Meeting Agent response: {err}. Body: {body}"),
+        )
+    })?;
+
+    println!("Meeting Agent response:");
+    println!("{:#}", value);
+
+    let mut last_meeting_agent = state
+        .last_meeting_agent
+        .lock()
+        .expect("Failed to lock meeting agent state");
+    *last_meeting_agent = Some(value.clone());
+
+    Ok(Json(value))
+}
+
+async fn get_meeting_agent_status(State(state): State<AppState>) -> Json<Value> {
+    let last_meeting_agent = state
+        .last_meeting_agent
+        .lock()
+        .expect("Failed to lock meeting agent state");
+
+    match &*last_meeting_agent {
+        Some(payload) => Json(json!({
+            "has_meeting_agent": true,
+            "last_meeting_agent": payload
+        })),
+        None => Json(json!({
+            "has_meeting_agent": false,
+            "last_meeting_agent": null
+        })),
+    }
+}
+
 async fn get_meeting_context() -> Json<MeetingContextResponse> {
     Json(MeetingContextResponse {
         status: "ready".to_string(),
-        transcript_status: "waiting for Meeting Agent integration".to_string(),
-        summary: "The meeting was created in the calendar. In the complete flow, Meeting Agents can bring transcript, summary, and follow-up context back into the product.".to_string(),
+        transcript_status: "Meeting Agent API available".to_string(),
+        summary: "The meeting was created in the calendar. The app can now dispatch a Cronofy Meeting Agent to capture transcript, summary, audio, and video resources from a real online meeting.".to_string(),
         next_actions: vec![
             "Send confirmation to the attendee".to_string(),
             "Prepare the meeting brief".to_string(),
+            "Dispatch a Meeting Agent with a Google Meet URL".to_string(),
             "Use Meeting Agent output after the call".to_string(),
         ],
     })
@@ -686,6 +782,7 @@ async fn get_agent_workflow() -> Json<AgentWorkflowResponse> {
             "Agent asks Cronofy for real availability".to_string(),
             "Cronofy returns valid calendar-aware time slots".to_string(),
             "The app books the selected meeting through the Calendar API".to_string(),
+            "The app can dispatch a Meeting Agent to capture meeting context".to_string(),
             "Meeting context can flow back into the app after the meeting".to_string(),
         ],
     })
@@ -699,6 +796,7 @@ async fn main() {
         last_webhook: Arc::new(Mutex::new(None)),
         auth: Arc::new(Mutex::new(None)),
         last_slots: Arc::new(Mutex::new(Vec::new())),
+        last_meeting_agent: Arc::new(Mutex::new(None)),
     };
 
     let cors = CorsLayer::new()
@@ -716,6 +814,8 @@ async fn main() {
         .route("/calendars", get(list_calendars))
         .route("/availability", post(find_availability))
         .route("/book-meeting", post(book_meeting))
+        .route("/meeting-agent", post(dispatch_meeting_agent))
+        .route("/meeting-agent-status", get(get_meeting_agent_status))
         .route("/meeting-context", get(get_meeting_context))
         .route("/agent-workflow", get(get_agent_workflow))
         .with_state(state)
