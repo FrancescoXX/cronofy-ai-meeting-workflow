@@ -1,5 +1,8 @@
 # Cronofy AI Meeting Workflow Demo
 
+<img width="968" height="480" alt="image" src="https://github.com/user-attachments/assets/1dc42714-5e2a-41fb-8afd-56b46ed6dac5" />
+
+
 A minimal demo application showing how to build an AI meeting workflow with Cronofy APIs.
 
 The app uses Cronofy as the time infrastructure layer for:
