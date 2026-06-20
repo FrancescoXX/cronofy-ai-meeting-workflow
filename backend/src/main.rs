@@ -1,20 +1,18 @@
 use axum::{
-    extract::{Query, State},
+    extract::{ Query, State },
     http::StatusCode,
-    response::{Html, Redirect},
-    routing::{get, post},
-    Json, Router,
+    response::{ Html, Redirect },
+    routing::{ get, post },
+    Json,
+    Router,
 };
-use chrono::{Duration, SecondsFormat, Utc};
-use jsonwebtoken::{encode, EncodingKey, Header};
+use chrono::{ Duration, SecondsFormat, Utc };
+use jsonwebtoken::{ encode, EncodingKey, Header };
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use std::{
-    env,
-    sync::{Arc, Mutex},
-};
-use tower_http::cors::{Any, CorsLayer};
+use serde::{ Deserialize, Serialize };
+use serde_json::{ json, Value };
+use std::{ env, sync::{ Arc, Mutex } };
+use tower_http::cors::{ Any, CorsLayer };
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -156,25 +154,19 @@ fn app_url() -> String {
 fn encode_component(value: &str) -> String {
     value
         .bytes()
-        .flat_map(|byte| match byte {
-            b'A'..=b'Z'
-            | b'a'..=b'z'
-            | b'0'..=b'9'
-            | b'-'
-            | b'_'
-            | b'.'
-            | b'~' => vec![byte as char],
-            _ => format!("%{byte:02X}").chars().collect(),
+        .flat_map(|byte| {
+            match byte {
+                b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' =>
+                    vec![byte as char],
+                _ => format!("%{byte:02X}").chars().collect(),
+            }
         })
         .collect()
 }
 
 fn require_env(name: &str) -> Result<String, (StatusCode, String)> {
     env::var(name).map_err(|_| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Missing environment variable: {name}"),
-        )
+        (StatusCode::INTERNAL_SERVER_ERROR, format!("Missing environment variable: {name}"))
     })
 }
 
@@ -195,13 +187,9 @@ async fn generate_embed_token() -> Result<Json<EmbedTokenResponse>, (StatusCode,
     let token = encode(
         &Header::default(),
         &claims,
-        &EncodingKey::from_secret(embed_secret.as_bytes()),
-    )
-    .map_err(|err| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to generate token: {err}"),
-        )
+        &EncodingKey::from_secret(embed_secret.as_bytes())
+    ).map_err(|err| {
+        (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to generate token: {err}"))
     })?;
 
     Ok(Json(EmbedTokenResponse { embed_token: token }))
@@ -209,7 +197,7 @@ async fn generate_embed_token() -> Result<Json<EmbedTokenResponse>, (StatusCode,
 
 async fn receive_cronofy_webhook(
     State(state): State<AppState>,
-    Json(payload): Json<Value>,
+    Json(payload): Json<Value>
 ) -> Json<WebhookResponse> {
     println!("Cronofy webhook received:");
     println!("{:#}", payload);
@@ -226,11 +214,15 @@ async fn get_meeting_status(State(state): State<AppState>) -> Json<Value> {
     let last_webhook = state.last_webhook.lock().expect("Failed to lock state");
 
     match &*last_webhook {
-        Some(payload) => Json(json!({
+        Some(payload) =>
+            Json(
+                json!({
             "has_update": true,
             "last_update": payload
-        })),
-        None => Json(json!({
+        })
+            ),
+        None =>
+            Json(json!({
             "has_update": false,
             "last_update": null
         })),
@@ -250,7 +242,7 @@ async fn oauth_start() -> Result<Redirect, (StatusCode, String)> {
         encode_component(&client_id),
         encode_component(&redirect_uri),
         encode_component(scope),
-        encode_component(&state),
+        encode_component(&state)
     );
 
     Ok(Redirect::temporary(&url))
@@ -258,20 +250,14 @@ async fn oauth_start() -> Result<Redirect, (StatusCode, String)> {
 
 async fn oauth_callback(
     State(state): State<AppState>,
-    Query(query): Query<OAuthCallbackQuery>,
+    Query(query): Query<OAuthCallbackQuery>
 ) -> Result<Html<String>, (StatusCode, String)> {
     if let Some(error) = query.error {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            format!("Cronofy authorization failed: {error}"),
-        ));
+        return Err((StatusCode::BAD_REQUEST, format!("Cronofy authorization failed: {error}")));
     }
 
     let code = query.code.ok_or_else(|| {
-        (
-            StatusCode::BAD_REQUEST,
-            "Missing OAuth code from Cronofy callback".to_string(),
-        )
+        (StatusCode::BAD_REQUEST, "Missing OAuth code from Cronofy callback".to_string())
     })?;
 
     let client_id = require_env("CRONOFY_CLIENT_ID")?;
@@ -282,20 +268,18 @@ async fn oauth_callback(
 
     let response = client
         .post(format!("{}/oauth/token", data_center_url()))
-        .json(&json!({
+        .json(
+            &json!({
             "client_id": client_id,
             "client_secret": client_secret,
             "grant_type": "authorization_code",
             "code": code,
             "redirect_uri": redirect_uri
-        }))
-        .send()
-        .await
+        })
+        )
+        .send().await
         .map_err(|err| {
-            (
-                StatusCode::BAD_GATEWAY,
-                format!("Failed to call Cronofy token endpoint: {err}"),
-            )
+            (StatusCode::BAD_GATEWAY, format!("Failed to call Cronofy token endpoint: {err}"))
         })?;
 
     if !response.status().is_success() {
@@ -308,19 +292,20 @@ async fn oauth_callback(
         ));
     }
 
-    let token: TokenResponse = response.json().await.map_err(|err| {
-        (
-            StatusCode::BAD_GATEWAY,
-            format!("Failed to parse Cronofy token response: {err}"),
-        )
-    })?;
+    let token: TokenResponse = response
+        .json().await
+        .map_err(|err| {
+            (StatusCode::BAD_GATEWAY, format!("Failed to parse Cronofy token response: {err}"))
+        })?;
 
-    let sub = token.sub.or(token.account_id).ok_or_else(|| {
-        (
-            StatusCode::BAD_GATEWAY,
-            "Cronofy token response did not include sub/account_id".to_string(),
-        )
-    })?;
+    let sub = token.sub
+        .or(token.account_id)
+        .ok_or_else(|| {
+            (
+                StatusCode::BAD_GATEWAY,
+                "Cronofy token response did not include sub/account_id".to_string(),
+            )
+        })?;
 
     let mut auth = state.auth.lock().expect("Failed to lock auth state");
     *auth = Some(AuthSession {
@@ -330,8 +315,9 @@ async fn oauth_callback(
         calendar_id: None,
     });
 
-    Ok(Html(
-        r#"
+    Ok(
+        Html(
+            r#"
         <html>
           <body style="font-family: sans-serif; padding: 40px;">
             <h1>Cronofy connected</h1>
@@ -339,36 +325,44 @@ async fn oauth_callback(
             <p>Next step: call <code>/calendars</code> once, then use the frontend.</p>
           </body>
         </html>
-        "#
-        .to_string(),
-    ))
+        "#.to_string()
+        )
+    )
 }
 
 async fn auth_status(State(state): State<AppState>) -> Json<Value> {
     let auth = state.auth.lock().expect("Failed to lock auth state");
 
     match &*auth {
-        Some(session) => Json(json!({
+        Some(session) =>
+            Json(
+                json!({
             "connected": true,
             "sub": session.sub,
             "calendar_id": session.calendar_id,
             "has_refresh_token": session.refresh_token.is_some()
-        })),
+        })
+            ),
         None => Json(json!({
             "connected": false
         })),
     }
 }
 
-async fn list_calendars(State(state): State<AppState>) -> Result<Json<Value>, (StatusCode, String)> {
+async fn list_calendars(State(state): State<AppState>) -> Result<
+    Json<Value>,
+    (StatusCode, String)
+> {
     let session = {
         let auth = state.auth.lock().expect("Failed to lock auth state");
-        auth.clone().ok_or_else(|| {
-            (
-                StatusCode::UNAUTHORIZED,
-                "Cronofy is not connected yet. Open http://127.0.0.1:3001/oauth/start first.".to_string(),
-            )
-        })?
+        auth
+            .clone()
+            .ok_or_else(|| {
+                (
+                    StatusCode::UNAUTHORIZED,
+                    "Cronofy is not connected yet. Open http://127.0.0.1:3001/oauth/start first.".to_string(),
+                )
+            })?
     };
 
     let client = Client::new();
@@ -376,13 +370,9 @@ async fn list_calendars(State(state): State<AppState>) -> Result<Json<Value>, (S
     let response = client
         .get(format!("{}/v1/calendars", data_center_url()))
         .bearer_auth(&session.access_token)
-        .send()
-        .await
+        .send().await
         .map_err(|err| {
-            (
-                StatusCode::BAD_GATEWAY,
-                format!("Failed to call Cronofy calendars endpoint: {err}"),
-            )
+            (StatusCode::BAD_GATEWAY, format!("Failed to call Cronofy calendars endpoint: {err}"))
         })?;
 
     if !response.status().is_success() {
@@ -395,24 +385,19 @@ async fn list_calendars(State(state): State<AppState>) -> Result<Json<Value>, (S
         ));
     }
 
-    let calendars_response: CalendarsResponse = response.json().await.map_err(|err| {
-        (
-            StatusCode::BAD_GATEWAY,
-            format!("Failed to parse Cronofy calendars response: {err}"),
-        )
-    })?;
+    let calendars_response: CalendarsResponse = response
+        .json().await
+        .map_err(|err| {
+            (StatusCode::BAD_GATEWAY, format!("Failed to parse Cronofy calendars response: {err}"))
+        })?;
 
-    let writable_calendar = calendars_response
-        .calendars
+    let writable_calendar = calendars_response.calendars
         .iter()
         .find(|calendar| {
-            calendar.calendar_primary
-                && !calendar.calendar_readonly
-                && !calendar.calendar_deleted
+            calendar.calendar_primary && !calendar.calendar_readonly && !calendar.calendar_deleted
         })
         .or_else(|| {
-            calendars_response
-                .calendars
+            calendars_response.calendars
                 .iter()
                 .find(|calendar| !calendar.calendar_readonly && !calendar.calendar_deleted)
         });
@@ -425,10 +410,14 @@ async fn list_calendars(State(state): State<AppState>) -> Result<Json<Value>, (S
         }
     }
 
-    Ok(Json(json!({
+    Ok(
+        Json(
+            json!({
         "calendars": calendars_response.calendars,
         "selected_calendar_id": writable_calendar.map(|calendar| calendar.calendar_id.clone())
-    })))
+    })
+        )
+    )
 }
 
 fn build_query_periods() -> Vec<Value> {
@@ -464,29 +453,34 @@ fn slot_label(start: &str, end: &str) -> String {
 
 async fn find_availability(
     State(state): State<AppState>,
-    Json(payload): Json<MeetingRequest>,
+    Json(payload): Json<MeetingRequest>
 ) -> Result<Json<AvailabilityResponse>, (StatusCode, String)> {
     let session = {
         let auth = state.auth.lock().expect("Failed to lock auth state");
-        auth.clone().ok_or_else(|| {
-            (
-                StatusCode::UNAUTHORIZED,
-                "Cronofy is not connected yet. Open http://127.0.0.1:3001/oauth/start first.".to_string(),
-            )
-        })?
+        auth
+            .clone()
+            .ok_or_else(|| {
+                (
+                    StatusCode::UNAUTHORIZED,
+                    "Cronofy is not connected yet. Open http://127.0.0.1:3001/oauth/start first.".to_string(),
+                )
+            })?
     };
 
-    let calendar_id = session.calendar_id.clone().ok_or_else(|| {
-        (
-            StatusCode::BAD_REQUEST,
-            "No writable calendar selected yet. Open http://127.0.0.1:3001/calendars first.".to_string(),
-        )
-    })?;
+    let calendar_id = session.calendar_id
+        .clone()
+        .ok_or_else(|| {
+            (
+                StatusCode::BAD_REQUEST,
+                "No writable calendar selected yet. Open http://127.0.0.1:3001/calendars first.".to_string(),
+            )
+        })?;
 
     let client_secret = require_env("CRONOFY_CLIENT_SECRET")?;
     let duration_minutes = payload.duration_minutes.unwrap_or(30);
 
-    let request_body = json!({
+    let request_body =
+        json!({
         "participants": [
             {
                 "members": [
@@ -518,8 +512,7 @@ async fn find_availability(
         .post(format!("{}/v1/availability", data_center_url()))
         .bearer_auth(client_secret)
         .json(&request_body)
-        .send()
-        .await
+        .send().await
         .map_err(|err| {
             (
                 StatusCode::BAD_GATEWAY,
@@ -528,12 +521,14 @@ async fn find_availability(
         })?;
 
     let status = response.status();
-    let value: Value = response.json().await.map_err(|err| {
-        (
-            StatusCode::BAD_GATEWAY,
-            format!("Failed to parse Cronofy availability response: {err}"),
-        )
-    })?;
+    let value: Value = response
+        .json().await
+        .map_err(|err| {
+            (
+                StatusCode::BAD_GATEWAY,
+                format!("Failed to parse Cronofy availability response: {err}"),
+            )
+        })?;
 
     println!("Availability response:");
     println!("{:#}", value);
@@ -571,26 +566,30 @@ async fn find_availability(
     let mut last_slots = state.last_slots.lock().expect("Failed to lock slots state");
     *last_slots = slots.clone();
 
-    Ok(Json(AvailabilityResponse {
-        source: "Cronofy Availability API".to_string(),
-        request: payload.prompt,
-        duration_minutes,
-        slots,
-    }))
+    Ok(
+        Json(AvailabilityResponse {
+            source: "Cronofy Availability API".to_string(),
+            request: payload.prompt,
+            duration_minutes,
+            slots,
+        })
+    )
 }
 
 async fn book_meeting(
     State(state): State<AppState>,
-    Json(payload): Json<BookMeetingRequest>,
+    Json(payload): Json<BookMeetingRequest>
 ) -> Result<Json<BookMeetingResponse>, (StatusCode, String)> {
     let session = {
         let auth = state.auth.lock().expect("Failed to lock auth state");
-        auth.clone().ok_or_else(|| {
-            (
-                StatusCode::UNAUTHORIZED,
-                "Cronofy is not connected yet. Open http://127.0.0.1:3001/oauth/start first.".to_string(),
-            )
-        })?
+        auth
+            .clone()
+            .ok_or_else(|| {
+                (
+                    StatusCode::UNAUTHORIZED,
+                    "Cronofy is not connected yet. Open http://127.0.0.1:3001/oauth/start first.".to_string(),
+                )
+            })?
     };
 
     let calendar_id = session.calendar_id.ok_or_else(|| {
@@ -626,8 +625,8 @@ async fn book_meeting(
         "start": selected_slot.start,
         "end": selected_slot.end,
         "tzid": "Europe/Rome",
-        "location": {
-            "description": "Online"
+        "conferencing": {
+            "profile_id": "integrated"
         },
         "reminders": []
     });
@@ -638,20 +637,12 @@ async fn book_meeting(
     let client = Client::new();
 
     let response = client
-        .post(format!(
-            "{}/v1/calendars/{}/events",
-            data_center_url(),
-            calendar_id
-        ))
+        .post(format!("{}/v1/calendars/{}/events", data_center_url(), calendar_id))
         .bearer_auth(&session.access_token)
         .json(&event_body)
-        .send()
-        .await
+        .send().await
         .map_err(|err| {
-            (
-                StatusCode::BAD_GATEWAY,
-                format!("Failed to call Cronofy events endpoint: {err}"),
-            )
+            (StatusCode::BAD_GATEWAY, format!("Failed to call Cronofy events endpoint: {err}"))
         })?;
 
     if !response.status().is_success() {
@@ -664,30 +655,33 @@ async fn book_meeting(
         ));
     }
 
-    Ok(Json(BookMeetingResponse {
-        status: "booked".to_string(),
-        meeting_id: event_id,
-        selected_slot: selected_slot_id,
-        calendar_updated: true,
-        workflow_updated: true,
-    }))
+    Ok(
+        Json(BookMeetingResponse {
+            status: "booked".to_string(),
+            meeting_id: event_id,
+            selected_slot: selected_slot_id,
+            calendar_updated: true,
+            workflow_updated: true,
+        })
+    )
 }
 
 async fn dispatch_meeting_agent(
     State(state): State<AppState>,
-    Json(payload): Json<MeetingAgentRequest>,
+    Json(payload): Json<MeetingAgentRequest>
 ) -> Result<Json<Value>, (StatusCode, String)> {
     let client_secret = require_env("CRONOFY_CLIENT_SECRET")?;
 
-    let attendee_email = payload
-        .attendee_email
-        .unwrap_or_else(|| "me@francescociulla.com".to_string());
+    let attendee_email = payload.attendee_email.unwrap_or_else(||
+        "me@francescociulla.com".to_string()
+    );
 
-    let display_name = payload
-        .display_name
-        .unwrap_or_else(|| "Cronofy AI Meeting Demo".to_string());
+    let display_name = payload.display_name.unwrap_or_else(||
+        "Cronofy AI Meeting Demo".to_string()
+    );
 
-    let request_body = json!({
+    let request_body =
+        json!({
         "join_url": payload.join_url,
         "display_name": display_name,
         "on_behalf_of_attendee": {
@@ -704,8 +698,7 @@ async fn dispatch_meeting_agent(
         .post(format!("{}/v1/meeting_agents", data_center_url()))
         .bearer_auth(client_secret)
         .json(&request_body)
-        .send()
-        .await
+        .send().await
         .map_err(|err| {
             (
                 StatusCode::BAD_GATEWAY,
@@ -723,18 +716,19 @@ async fn dispatch_meeting_agent(
         ));
     }
 
-    let value: Value = serde_json::from_str(&body).map_err(|err| {
-        (
-            StatusCode::BAD_GATEWAY,
-            format!("Failed to parse Cronofy Meeting Agent response: {err}. Body: {body}"),
-        )
-    })?;
+    let value: Value = serde_json
+        ::from_str(&body)
+        .map_err(|err| {
+            (
+                StatusCode::BAD_GATEWAY,
+                format!("Failed to parse Cronofy Meeting Agent response: {err}. Body: {body}"),
+            )
+        })?;
 
     println!("Meeting Agent response:");
     println!("{:#}", value);
 
-    let mut last_meeting_agent = state
-        .last_meeting_agent
+    let mut last_meeting_agent = state.last_meeting_agent
         .lock()
         .expect("Failed to lock meeting agent state");
     *last_meeting_agent = Some(value.clone());
@@ -743,20 +737,25 @@ async fn dispatch_meeting_agent(
 }
 
 async fn get_meeting_agent_status(State(state): State<AppState>) -> Json<Value> {
-    let last_meeting_agent = state
-        .last_meeting_agent
+    let last_meeting_agent = state.last_meeting_agent
         .lock()
         .expect("Failed to lock meeting agent state");
 
     match &*last_meeting_agent {
-        Some(payload) => Json(json!({
+        Some(payload) =>
+            Json(
+                json!({
             "has_meeting_agent": true,
             "last_meeting_agent": payload
-        })),
-        None => Json(json!({
+        })
+            ),
+        None =>
+            Json(
+                json!({
             "has_meeting_agent": false,
             "last_meeting_agent": null
-        })),
+        })
+            ),
     }
 }
 
@@ -769,7 +768,7 @@ async fn get_meeting_context() -> Json<MeetingContextResponse> {
             "Send confirmation to the attendee".to_string(),
             "Prepare the meeting brief".to_string(),
             "Dispatch a Meeting Agent with a Google Meet URL".to_string(),
-            "Use Meeting Agent output after the call".to_string(),
+            "Use Meeting Agent output after the call".to_string()
         ],
     })
 }
@@ -783,7 +782,7 @@ async fn get_agent_workflow() -> Json<AgentWorkflowResponse> {
             "Cronofy returns valid calendar-aware time slots".to_string(),
             "The app books the selected meeting through the Calendar API".to_string(),
             "The app can dispatch a Meeting Agent to capture meeting context".to_string(),
-            "Meeting context can flow back into the app after the meeting".to_string(),
+            "Meeting context can flow back into the app after the meeting".to_string()
         ],
     })
 }
@@ -799,10 +798,7 @@ async fn main() {
         last_meeting_agent: Arc::new(Mutex::new(None)),
     };
 
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
+    let cors = CorsLayer::new().allow_origin(Any).allow_methods(Any).allow_headers(Any);
 
     let app = Router::new()
         .route("/embed-token", get(generate_embed_token))
@@ -821,8 +817,8 @@ async fn main() {
         .with_state(state)
         .layer(cors);
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3001")
-        .await
+    let listener = tokio::net::TcpListener
+        ::bind("127.0.0.1:3001").await
         .expect("Failed to bind server");
 
     println!("Backend running on http://127.0.0.1:3001");
